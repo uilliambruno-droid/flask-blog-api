@@ -63,17 +63,16 @@ def init_db_command():
 def create_app(test_config=None):
     app = Flask(__name__, instance_relative_config=True)
 
-    # garante que /instance existe
     os.makedirs(app.instance_path, exist_ok=True)
 
-    # caminho ABSOLUTO do sqlite dentro de instance
-    db_path = os.path.join(app.instance_path, "blog.sqlite")
+    sqlite_path = os.path.join(app.instance_path, "blog.sqlite")
+    database_url = os.getenv("DATABASE_URL", f"sqlite:///{sqlite_path}")
 
     app.config.from_mapping(
-        SECRET_KEY="dev",
-        SQLALCHEMY_DATABASE_URI=f"sqlite:///{db_path}",  # <- absoluto
+        SECRET_KEY=os.getenv("SECRET_KEY", "dev"),
+        SQLALCHEMY_DATABASE_URI=database_url,
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
-        JWT_SECRET_KEY="super-secret",
+        JWT_SECRET_KEY=os.getenv("JWT_SECRET_KEY", "super-secret-key-for-jwt"),
     )
 
     if test_config is not None:
@@ -83,7 +82,6 @@ def create_app(test_config=None):
     migrate.init_app(app, db)
     jwt.init_app(app=app)
 
-    # registra o comando
     app.cli.add_command(init_db_command)
 
     from src.controllers import auth, post, role, user
