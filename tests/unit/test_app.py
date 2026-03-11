@@ -1,7 +1,8 @@
 import os
 
 from flask import Flask
-from src.app import Post, Role, User, create_app
+from src.app import create_app
+from src.models import Post, Role, User
 
 
 def test_create_app_returns_flask_app():
@@ -9,7 +10,7 @@ def test_create_app_returns_flask_app():
         {
             "TESTING": True,
             "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
-            "JWT_SECRET_KEY": "test-secret-key-1234567890",
+            "JWT_SECRET_KEY": "test-jwt-secret-key-32chars-minx",
         }
     )
 
@@ -21,13 +22,13 @@ def test_create_app_applies_default_config():
         {
             "TESTING": True,
             "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
-            "JWT_SECRET_KEY": "test-secret-key-1234567890",
+            "JWT_SECRET_KEY": "test-jwt-secret-key-32chars-minx",
         }
     )
 
     assert app.config["SECRET_KEY"] == "dev"
     assert app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] is False
-    assert app.config["JWT_SECRET_KEY"] == "test-secret-key-1234567890"
+    assert app.config["JWT_SECRET_KEY"] == "test-jwt-secret-key-32chars-minx"
 
 
 def test_create_app_overrides_with_test_config():
@@ -36,14 +37,14 @@ def test_create_app_overrides_with_test_config():
             "TESTING": True,
             "SECRET_KEY": "test-secret",
             "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
-            "JWT_SECRET_KEY": "jwt-test-secret-1234567890",
+            "JWT_SECRET_KEY": "jwt-test-secret-key-32chars-minx",
         }
     )
 
     assert app.config["TESTING"] is True
     assert app.config["SECRET_KEY"] == "test-secret"
     assert app.config["SQLALCHEMY_DATABASE_URI"] == "sqlite:///:memory:"
-    assert app.config["JWT_SECRET_KEY"] == "jwt-test-secret-1234567890"
+    assert app.config["JWT_SECRET_KEY"] == "jwt-test-secret-key-32chars-minx"
 
 
 def test_create_app_registers_blueprints():
@@ -51,7 +52,7 @@ def test_create_app_registers_blueprints():
         {
             "TESTING": True,
             "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
-            "JWT_SECRET_KEY": "test-secret-key-1234567890",
+            "JWT_SECRET_KEY": "test-jwt-secret-key-32chars-minx",
         }
     )
 
@@ -66,7 +67,7 @@ def test_create_app_registers_init_db_command():
         {
             "TESTING": True,
             "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
-            "JWT_SECRET_KEY": "test-secret-key-1234567890",
+            "JWT_SECRET_KEY": "test-jwt-secret-key-32chars-minx",
         }
     )
 
@@ -79,7 +80,7 @@ def test_create_app_creates_instance_path(tmp_path):
             "TESTING": True,
             "INSTANCE_PATH": str(tmp_path),
             "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
-            "JWT_SECRET_KEY": "test-secret-key-1234567890",
+            "JWT_SECRET_KEY": "test-jwt-secret-key-32chars-minx",
         }
     )
 

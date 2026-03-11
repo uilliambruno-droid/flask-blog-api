@@ -1,6 +1,6 @@
 from http import HTTPStatus
 
-from src.app import Post, Role, User, db
+from src.models import Post, Role, User, db
 
 
 def _create_normal_user(client):
@@ -58,6 +58,24 @@ def test_create_post_without_token(client):
     response = client.post("/posts/", json=payload)
 
     assert response.status_code == HTTPStatus.UNAUTHORIZED
+
+
+def test_list_posts_without_token(client):
+    response = client.get("/posts/")
+
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
+
+
+def test_list_posts_empty_success(client):
+    _, access_token = _create_normal_user(client)
+
+    response = client.get(
+        "/posts/",
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+
+    assert response.status_code == HTTPStatus.OK
+    assert response.json == {"posts": []}
 
 
 def test_create_post_forbidden(client):
@@ -149,6 +167,12 @@ def test_get_post_not_found(client):
     )
 
     assert response.status_code == HTTPStatus.NOT_FOUND
+
+
+def test_get_post_without_token(client):
+    response = client.get("/posts/1")
+
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
 
 
 def test_delete_post_success(client):

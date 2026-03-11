@@ -1,6 +1,6 @@
 from http import HTTPStatus
 
-from src.app import Role, User, db
+from src.models import Role, User, db
 
 
 def test_login_success(client):
@@ -56,3 +56,4 @@ def test_login_missing_fields(client):
     )
 
     assert response.status_code == HTTPStatus.UNAUTHORIZED
+    assert response.json == {"msg": "Bad username or password"}

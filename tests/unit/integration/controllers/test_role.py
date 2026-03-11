@@ -1,6 +1,6 @@
 from http import HTTPStatus
 
-from src.app import Role, User, db
+from src.models import Role, User, db
 from src.utils import requires_roles
 
 
@@ -28,6 +28,19 @@ def test_create_role_without_token(client):
     response = client.post("/roles/", json=payload)
 
     assert response.status_code == HTTPStatus.UNAUTHORIZED
+
+
+def test_create_role_success(client, access_token):
+    payload = {"name": "manager"}
+
+    response = client.post(
+        "/roles/",
+        json=payload,
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+
+    assert response.status_code == HTTPStatus.CREATED
+    assert response.json == {"message": "Role created!"}
 
 
 def test_create_role_forbidden(client):
@@ -70,7 +83,8 @@ def test_create_role_duplicate(client, access_token):
         headers={"Authorization": f"Bearer {access_token}"},
     )
 
-    assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
+    assert response.status_code == HTTPStatus.CONFLICT
+    assert response.json == {"error": "Role name already exists"}
 
 
 def test_requires_role_fail(mocker):

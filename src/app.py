@@ -1,88 +1,61 @@
+import json
 import os
-from datetime import datetime
 
-import click
-import sqlalchemy as sa
+from apispec import APISpec
+from apispec.ext.marshmallow import MarshmallowPlugin
+from apispec_webframeworks.flask import FlaskPlugin
 from flask import Flask
+from flask_bcrypt import Bcrypt
 from flask_jwt_extended import JWTManager
+from flask_marshmallow import Marshmallow
 from flask_migrate import Migrate
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from src.db import init_app as init_db_app
+from src.models import db
+from werkzeug.exceptions import HTTPException
+
+spec = APISpec(
+    title="Flask Blog API",
+    version="1.0.0",
+    openapi_version="3.0.2",
+    info=dict(
+        description="Flask Blog API with JWT Authentication and Role-Based Access Control"
+    ),
+    plugins=[FlaskPlugin(), MarshmallowPlugin()],
+)
 
 
-class Base(DeclarativeBase):
-    pass
-
-
-db = SQLAlchemy(model_class=Base)
 migrate = Migrate()
 jwt = JWTManager()
+bcrypt = Bcrypt()
+ma = Marshmallow()
 
 
-class Role(db.Model):
-    id: Mapped[int] = mapped_column(sa.Integer, primary_key=True)
-    name: Mapped[str] = mapped_column(sa.String, unique=True)
-    users: Mapped[list["User"]] = relationship(back_populates="role")
+def create_app(environment=None, test_config=None):
+    if isinstance(environment, dict) and test_config is None:
+        test_config = environment
+        environment = None
 
-    def __repr__(self) -> str:
-        return f"Role(id={self.id!r}, name={self.name!r})"
+    if environment is None:
+        environment = os.getenv("ENVIRONMENT", "development")
 
-
-class User(db.Model):
-    id: Mapped[int] = mapped_column(sa.Integer, primary_key=True)
-    username: Mapped[str] = mapped_column(sa.String, unique=True)
-    password: Mapped[str] = mapped_column(sa.String, nullable=False)
-    role_id: Mapped[int] = mapped_column(sa.ForeignKey("role.id"), nullable=False)
-    role: Mapped["Role"] = relationship(back_populates="users")
-
-    def __repr__(self) -> str:
-        return f"User(id={self.id!r}, username={self.username!r})"
-
-
-class Post(db.Model):
-    id: Mapped[int] = mapped_column(sa.Integer, primary_key=True)
-    title: Mapped[str] = mapped_column(sa.String, nullable=False)
-    body: Mapped[str] = mapped_column(sa.String, nullable=False)
-    created: Mapped[datetime] = mapped_column(
-        sa.DateTime, server_default=sa.func.now(), nullable=False
-    )
-    author_id: Mapped[int] = mapped_column(sa.ForeignKey("user.id"), nullable=False)
-
-    def __repr__(self) -> str:
-        return (
-            f"Post(id={self.id!r}, title={self.title!r}, author_id={self.author_id!r})"
-        )
-
-
-@click.command("init-db")
-def init_db_command():
-    db.create_all()
-    click.echo("Initialized the database.")
-
-
-def create_app(test_config=None):
     app = Flask(__name__, instance_relative_config=True)
 
-    os.makedirs(app.instance_path, exist_ok=True)
-
-    sqlite_path = os.path.join(app.instance_path, "blog.sqlite")
-    database_url = os.getenv("DATABASE_URL", f"sqlite:///{sqlite_path}")
-
-    app.config.from_mapping(
-        SECRET_KEY=os.getenv("SECRET_KEY", "dev"),
-        SQLALCHEMY_DATABASE_URI=database_url,
-        SQLALCHEMY_TRACK_MODIFICATIONS=False,
-        JWT_SECRET_KEY=os.getenv("JWT_SECRET_KEY", "super-secret-key-for-jwt"),
-    )
+    app.config.from_object(f"src.config.{environment.capitalize()}Config")
 
     if test_config is not None:
         app.config.update(test_config)
 
+    os.makedirs(app.instance_path, exist_ok=True)
+
+    init_db_app(app)
+
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app=app)
+    bcrypt.init_app(app)
 
-    app.cli.add_command(init_db_command)
+    # initialize marshmallow with the app
+    ma.init_app(app)
 
     from src.controllers import auth, post, role, user
 
@@ -90,5 +63,26 @@ def create_app(test_config=None):
     app.register_blueprint(post.app)
     app.register_blueprint(auth.app)
     app.register_blueprint(role.app)
+
+    @app.route("/docs")
+    def docs():
+        return spec.path(view=user.get_user).to_dict()
+
+    @app.errorhandler(HTTPException)
+    def handle_exception(e):
+
+        response = e.get_response()
+
+        response.data = json.dumps(
+            {
+                "code": e.code,
+                "name": e.name,
+                "description": e.description,
+            }
+        )
+
+        response.content_type = "application/json"
+
+        return response
 
     return app

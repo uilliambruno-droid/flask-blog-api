@@ -2,7 +2,7 @@ from http import HTTPStatus
 
 from flask import Blueprint, request
 from sqlalchemy import inspect
-from src.app import Post, db
+from src.models import Post, db
 from src.utils import requires_roles
 
 app = Blueprint("post", __name__, url_prefix="/posts")

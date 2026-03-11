@@ -1,6 +1,6 @@
 from http import HTTPStatus
 
-from src.app import User
+from src.models import User
 from src.utils import requires_roles
 
 
